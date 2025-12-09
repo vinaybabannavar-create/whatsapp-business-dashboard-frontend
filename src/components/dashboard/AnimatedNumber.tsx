@@ -1,53 +1,34 @@
-<<<<<<< HEAD
 "use client";
+
 import { useEffect, useState } from "react";
 
-export default function AnimatedNumber({ value, duration = 1200 }) {
-  const [display, setDisplay] = useState(0);
+interface AnimatedNumberProps {
+  value: number;
+  duration?: number;
+}
+
+export default function AnimatedNumber({ value, duration = 800 }: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    let start = 0;
-    const end = Number(value);
-    const increment = end / (duration / 16);
+    const start = displayValue;
+    const end = value;
+    const stepTime = 10;
+    const steps = duration / stepTime;
+    const increment = (end - start) / steps;
 
-    const counter = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        start = end;
-        clearInterval(counter);
+    let current = start;
+    const interval = setInterval(() => {
+      current += increment;
+      if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+        current = end;
+        clearInterval(interval);
       }
-      setDisplay(Math.floor(start));
-    }, 16);
+      setDisplayValue(Math.round(current));
+    }, stepTime);
 
-    return () => clearInterval(counter);
+    return () => clearInterval(interval);
   }, [value]);
 
-  return <span>{display}</span>;
+  return <span>{displayValue.toLocaleString()}</span>;
 }
-=======
-"use client";
-import { useEffect, useState } from "react";
-
-export default function AnimatedNumber({ value, duration = 1200 }) {
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    let start = 0;
-    const end = Number(value);
-    const increment = end / (duration / 16);
-
-    const counter = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        start = end;
-        clearInterval(counter);
-      }
-      setDisplay(Math.floor(start));
-    }, 16);
-
-    return () => clearInterval(counter);
-  }, [value]);
-
-  return <span>{display}</span>;
-}
->>>>>>> 977c3b3b9697ba4d9c58d2047bd14e2e5a6ef096
