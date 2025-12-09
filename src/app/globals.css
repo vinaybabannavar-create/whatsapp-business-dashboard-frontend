@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ======================================================
+   LIGHT MODE
+   ====================================================== */
+:root {
+  --background: #f5f7fa;
+  --surface: #ffffff;
+  --surface-alt: #f0f2f5;
+
+  --border: #e2e8f0;
+
+  --text: #0f172a;
+  --text-muted: #64748b;
+
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+
+/* ======================================================
+   DARK MODE
+   ====================================================== */
+.dark {
+  --background: #0d1117;
+  --surface: #161b22;
+  --surface-alt: #1b222c;
+
+  --border: #2d333b;
+
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+
+/* ======================================================
+   GLOBAL BODY
+   ====================================================== */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  transition: background 0.25s, color 0.25s;
+}
+
+/* Recharts Tooltip Fix */
+.recharts-default-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* Pretty animation */
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slideLeft {
+  animation: slideLeft 0.3s ease-out;
+}

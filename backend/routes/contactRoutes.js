@@ -1,0 +1,17 @@
+// backend/routes/contactRoutes.js
+import express from "express";
+import {
+  getContacts,
+  createContact,
+  deleteContact,
+} from "../controllers/contactController.js";
+
+const router = express.Router();
+
+router.get("/", getContacts);
+router.post("/", createContact);
+
+// optional delete by id
+router.delete("/:id", deleteContact);
+
+export default router;
