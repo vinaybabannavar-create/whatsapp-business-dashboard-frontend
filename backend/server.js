@@ -17,52 +17,81 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// ===============================
+// 🔥 ALLOWED FRONTEND ORIGINS
+// ===============================
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app",
+];
+
+// ===============================
+// 🔥 SOCKET.IO WITH CORRECT CORS
+// ===============================
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
 
-// Attach io to app so controllers can access it
+// Attach io so controllers can emit events
 app.set("io", io);
 
-// DB
+// ===============================
+// 🔥 DATABASE CONNECTION
+// ===============================
 connectDB();
 
-// Middleware
+// ===============================
+// 🔥 GLOBAL MIDDLEWARE
+// ===============================
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Static file hosting
 app.use("/uploads", express.static("uploads"));
 
-// Routes
+// ===============================
+// 🔥 ROUTES
+// ===============================
 app.get("/", (req, res) => res.send("WhatsApp Dashboard API running"));
+
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/templates", templateRoutes);
 
-// Socket events
+// ===============================
+// 🔥 SOCKET EVENTS
+// ===============================
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
+
   socket.on("joinChat", (phone) => {
     socket.join(phone);
     console.log(`User joined chat room: ${phone}`);
   });
+
   socket.on("disconnect", () => {
     console.log("Socket disconnected:", socket.id);
   });
 });
 
+// ===============================
+// 🔥 START SERVER
+// ===============================
 const PORT = process.env.PORT || 5000;
+
 server.listen(PORT, () => {
   console.log(`API server listening on port ${PORT}`);
 });
