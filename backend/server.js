@@ -17,17 +17,18 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// ===============================
+// =====================================
 // 🔥 ALLOWED FRONTEND ORIGINS
-// ===============================
+// =====================================
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app",
+  "https://whatsapp-business-dashboard-frontend.vercel.app",
+  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app"
 ];
 
-// ===============================
-// 🔥 SOCKET.IO WITH CORRECT CORS
-// ===============================
+// =====================================
+// 🔥 SOCKET.IO WITH CORS
+// =====================================
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -35,17 +36,17 @@ const io = new Server(server, {
   },
 });
 
-// Attach io so controllers can emit events
+// Make socket available to routes
 app.set("io", io);
 
-// ===============================
-// 🔥 DATABASE CONNECTION
-// ===============================
+// =====================================
+// 🔥 CONNECT DATABASE
+// =====================================
 connectDB();
 
-// ===============================
+// =====================================
 // 🔥 GLOBAL MIDDLEWARE
-// ===============================
+// =====================================
 app.use(
   cors({
     origin: allowedOrigins,
@@ -56,13 +57,11 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Static file hosting
 app.use("/uploads", express.static("uploads"));
 
-// ===============================
+// =====================================
 // 🔥 ROUTES
-// ===============================
+// =====================================
 app.get("/", (req, res) => res.send("WhatsApp Dashboard API running"));
 
 app.use("/api/analytics", analyticsRoutes);
@@ -71,9 +70,9 @@ app.use("/api/chats", chatRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/templates", templateRoutes);
 
-// ===============================
+// =====================================
 // 🔥 SOCKET EVENTS
-// ===============================
+// =====================================
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
@@ -87,9 +86,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// ===============================
+// =====================================
 // 🔥 START SERVER
-// ===============================
+// =====================================
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
