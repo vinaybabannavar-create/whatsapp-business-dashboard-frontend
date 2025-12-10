@@ -10,10 +10,21 @@ export async function POST(req) {
   console.log("🔥 AI ROUTE HIT");
 
   try {
-    const { industry, tone, details, mode } = await req.json();
+    const body = await req.json();
+    const { industry, tone, details, mode } = body;
+
+    if (!mode) {
+      return Response.json(
+        { success: false, error: "Mode is required" },
+        { status: 400 }
+      );
+    }
 
     let prompt = "";
 
+    // ------------------------------
+    // SINGLE TEMPLATE
+    // ------------------------------
     if (mode === "single") {
       prompt = `
 Generate a WhatsApp Business template.
@@ -30,6 +41,9 @@ Rules:
 `;
     }
 
+    // ------------------------------
+    // MULTI TEMPLATE (3 variants)
+    // ------------------------------
     if (mode === "multi") {
       prompt = `
 Generate 3 different WhatsApp Business templates.
@@ -47,6 +61,9 @@ Rules:
 `;
     }
 
+    // ------------------------------
+    // REWRITE MODE
+    // ------------------------------
     if (mode === "rewrite") {
       prompt = `
 Rewrite this WhatsApp message:
@@ -61,15 +78,20 @@ Rules:
 `;
     }
 
+    // ------------------------------
+    // AI REQUEST
+    // ------------------------------
     const completion = await client.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.6,
       messages: [{ role: "user", content: prompt }],
     });
 
-    const output = completion.choices[0].message.content.trim();
-    console.log("AI OUT:", output);
+    const output = completion.choices?.[0]?.message?.content?.trim() || "";
 
+    // ------------------------------
+    // MULTI RESPONSE SPLIT
+    // ------------------------------
     if (mode === "multi") {
       let variants = output.split("***BREAK***").map((s) => s.trim());
 
