@@ -17,87 +17,70 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// =====================================
-// ✅ ALLOWED ORIGINS (FRONTEND URLs)
-// =====================================
+// ===============================
+// 🔥 ALLOWED FRONTEND ORIGINS
+// ===============================
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app",
-  "https://whatsapp-business-dashboard-frontend.vercel.app"
+  "https://whatsapp-business-dashboard-frontend.vercel.app",
+  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app"
 ];
 
 console.log("🚀 Allowed origins:", allowedOrigins);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log("❌ BLOCKED ORIGIN:", origin);
-      callback(new Error("CORS blocked: " + origin));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-}));
-
-
-// =====================================
-// ✅ SOCKET.IO CORS
-// =====================================
+// ===============================
+// 🔥 SOCKET.IO CORS
+// ===============================
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
   },
 });
 
-// Attach io to app
+// Allow emitting from controllers
 app.set("io", io);
 
-// =====================================
-// ✅ CONNECT DATABASE
-// =====================================
+// Connect DB
 connectDB();
 
-// =====================================
-// ✅ GLOBAL MIDDLEWARE
-// =====================================
+// ===============================
+// 🔥 GLOBAL MIDDLEWARE
+// ===============================
 app.use(
   cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: function (origin, callback) {
+      console.log("🌍 CORS request from:", origin);
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("❌ BLOCKED ORIGIN:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Static
 app.use("/uploads", express.static("uploads"));
 
-// =====================================
-// ✅ ROUTES
-// =====================================
+// Routes
 app.get("/", (req, res) => res.send("WhatsApp Dashboard API running"));
-
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/templates", templateRoutes);
 
-// =====================================
-// ✅ SOCKET EVENTS
-// =====================================
+// Socket events
 io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
+  console.log("⚡ Socket connected:", socket.id);
 
   socket.on("joinChat", (phone) => {
     socket.join(phone);
-    console.log(`Joined room: ${phone}`);
+    console.log(`📌 Joined chat room: ${phone}`);
   });
 
   socket.on("disconnect", () => {
@@ -105,11 +88,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// =====================================
-// ✅ START SERVER
-// =====================================
+// PORT
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`API server running on port ${PORT}`);
+  console.log(`🚀 API running on PORT ${PORT}`);
 });
