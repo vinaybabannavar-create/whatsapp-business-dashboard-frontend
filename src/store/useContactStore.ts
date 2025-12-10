@@ -2,14 +2,19 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Contact } from "@/lib/types";
+import type { Contact } from "@/lib/types";
 
 type ContactState = {
   contacts: Contact[];
+
   addContact: (name: string, phone: string) => void;
   deleteContact: (id: string) => void;
   editContact: (updated: Contact) => void;
+
+  updateTags: (id: string, tags: string[]) => void;
+
   resetInvalidContacts: () => void;
+  clearAll: () => void;
 };
 
 export const useContactStore = create<ContactState>()(
@@ -40,12 +45,20 @@ export const useContactStore = create<ContactState>()(
       ],
 
       addContact: (name, phone) => {
-        if (!name.trim() || !phone.trim()) return;
+        const cleanName = name.trim();
+        const cleanPhone = phone.trim();
+
+        if (!cleanName || !cleanPhone) return;
+
+        if (get().contacts.some((c) => c.phone_number === cleanPhone)) {
+          console.warn("Duplicate phone blocked:", cleanPhone);
+          return;
+        }
 
         const newContact: Contact = {
           id: Date.now().toString(),
-          name: name.trim(),
-          phone_number: phone.trim(),
+          name: cleanName,
+          phone_number: cleanPhone,
           tags: ["New"],
           created_at: new Date().toISOString().split("T")[0],
         };
@@ -65,17 +78,32 @@ export const useContactStore = create<ContactState>()(
           ),
         }),
 
+      updateTags: (id, tags) =>
+        set({
+          contacts: get().contacts.map((c) =>
+            c.id === id ? { ...c, tags } : c
+          ),
+        }),
+
       resetInvalidContacts: () => {
-        const cleaned = get().contacts.filter(
-          (c: any) =>
+        const cleaned = get().contacts.filter((c: any) => {
+          return (
             typeof c === "object" &&
+            typeof c.id === "string" &&
             typeof c.name === "string" &&
-            typeof c.phone_number === "string"
-        );
+            typeof c.phone_number === "string" &&
+            Array.isArray(c.tags)
+          );
+        });
 
         set({ contacts: cleaned });
       },
+
+      clearAll: () => set({ contacts: [] }),
     }),
-    { name: "wa-contacts" }
+    {
+      name: "wa-contacts",
+      version: 2,
+    }
   )
 );

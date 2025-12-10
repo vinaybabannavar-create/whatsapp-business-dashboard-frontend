@@ -1,0 +1,12 @@
+{
+  "/_not-found": "app/_not-found.js",
+  "/chats/page": "app/chats/page.js",
+  "/campaigns/analytics/page": "app/campaigns/analytics/page.js",
+  "/campaigns/page": "app/campaigns/page.js",
+  "/login/page": "app/login/page.js",
+  "/contacts/page": "app/contacts/page.js",
+  "/templates/page": "app/templates/page.js",
+  "/page": "app/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/api/ai-template/route": "app/api/ai-template/route.js"
+}

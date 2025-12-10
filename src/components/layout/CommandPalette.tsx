@@ -30,7 +30,7 @@ export default function CommandPalette() {
   const router = useRouter();
   const { setSelectedChat } = useChatStore();
 
-  // CTRL+K Shortcut
+  // ---------- CTRL+K Shortcut ----------
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -39,22 +39,25 @@ export default function CommandPalette() {
       }
       if (e.key === "Escape") setOpen(false);
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Load data
+  // ---------- Load Data When Open ----------
   useEffect(() => {
     if (!open) return;
 
     async function loadData() {
       try {
         setLoading(true);
+
         const [c, ca, t] = await Promise.all([
           apiContacts(),
           apiCampaigns(),
           apiTemplates(),
         ]);
+
         setContacts(c);
         setCampaigns(ca);
         setTemplates(t);
@@ -66,7 +69,7 @@ export default function CommandPalette() {
     loadData();
   }, [open]);
 
-  // Filter results
+  // ---------- Filter Items ----------
   useEffect(() => {
     if (!query.trim()) {
       setItems([]);
@@ -75,6 +78,7 @@ export default function CommandPalette() {
 
     const q = query.toLowerCase();
 
+    // CONTACTS
     const contactItems = contacts
       .filter(
         (c) =>
@@ -89,19 +93,21 @@ export default function CommandPalette() {
         phoneNumber: c.phone_number,
       }));
 
+    // CAMPAIGNS
     const campaignItems = campaigns
       .filter((c) => c.name.toLowerCase().includes(q))
       .map<SearchItem>((c) => ({
-        id: `campaign-${c.id}`,
+        id: `campaign-${c._id}`,
         label: c.name,
-        subtitle: `${c.status.toUpperCase()} • ${c.sent}/${c.total_contacts} sent`,
+        subtitle: `${c.status.toUpperCase()} • ${c.stats?.sent ?? 0} sent`,
         type: "campaign",
       }));
 
+    // TEMPLATES
     const templateItems = templates
       .filter((t) => t.name.toLowerCase().includes(q))
       .map<SearchItem>((t) => ({
-        id: `template-${t.id}`,
+        id: `template-${t._id}`,
         label: t.name,
         subtitle: `${t.category} • ${t.language}`,
         type: "template",
@@ -110,7 +116,7 @@ export default function CommandPalette() {
     setItems([...contactItems, ...campaignItems, ...templateItems]);
   }, [query, contacts, campaigns, templates]);
 
-  // Click handler
+  // ---------- Select Result ----------
   const handleSelect = (item: SearchItem) => {
     if (item.type === "contact" && item.phoneNumber) {
       setSelectedChat(item.phoneNumber, item.label);
@@ -148,9 +154,7 @@ export default function CommandPalette() {
 
         {/* Results */}
         <div className="max-h-80 overflow-y-auto py-2">
-          {loading && (
-            <p className="text-xs text-[var(--text-muted)] px-4 py-2">Loading data…</p>
-          )}
+          {loading && <p className="text-xs text-[var(--text-muted)] px-4 py-2">Loading data…</p>}
 
           {!loading && query && items.length === 0 && (
             <p className="text-xs text-[var(--text-muted)] px-4 py-2">

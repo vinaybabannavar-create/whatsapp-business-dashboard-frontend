@@ -3,6 +3,19 @@
 import { useState, useRef } from "react";
 import { Paperclip, Mic, Send, X } from "lucide-react";
 
+/* ---------------------------------------------
+   Strong typing for props (no more `any`)
+--------------------------------------------- */
+interface ChatInputProps {
+  onSend: (text: string) => void;
+  onSendFile: (file: File) => void;
+  disabled?: boolean;
+  onTyping: () => void;
+  onStopTyping: () => void;
+  replyTo: { id: string; text: string; from: string } | null;
+  onCancelReply: () => void;
+}
+
 export default function ChatInput({
   onSend,
   onSendFile,
@@ -11,15 +24,26 @@ export default function ChatInput({
   onStopTyping,
   replyTo,
   onCancelReply,
-}: any) {
+}: ChatInputProps) {
   const [text, setText] = useState("");
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  /* SEND MESSAGE */
   const handleSend = () => {
     if (!text.trim()) return;
+
     onSend(text);
     setText("");
+    onStopTyping();
+  };
+
+  /* SEND ON ENTER KEY */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && text.trim()) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -44,7 +68,7 @@ export default function ChatInput({
 
       <div className="flex items-center gap-3">
 
-        {/* FILE UPLOAD */}
+        {/* FILE UPLOAD BUTTON */}
         <button
           onClick={() => fileRef.current?.click()}
           className="p-2 rounded-full hover:bg-gray-200 transition"
@@ -57,41 +81,42 @@ export default function ChatInput({
           ref={fileRef}
           hidden
           onChange={(e) => {
-            if (!e.target.files?.length) return;
-            onSendFile(e.target.files[0]);
+            const file = e.target.files?.[0];
+            if (!file) return;
+            onSendFile(file);
+            e.target.value = ""; // allow uploading same file again
           }}
         />
 
-        {/* MESSAGE INPUT */}
+        {/* TEXT INPUT */}
         <input
           value={text}
+          onKeyDown={handleKeyDown}
           onChange={(e) => {
-            setText(e.target.value);
-            if (e.target.value) onTyping();
+            const value = e.target.value;
+            setText(value);
+
+            if (value.trim().length > 0) onTyping();
             else onStopTyping();
           }}
           placeholder="Message..."
           className="flex-1 px-4 py-2 bg-gray-100 rounded-full outline-none"
         />
 
-        {/* MIC (optional) */}
+        {/* MIC BUTTON */}
         <button className="p-2 rounded-full hover:bg-gray-200 transition">
           <Mic size={20} />
         </button>
 
-        {/* SEND BUTTON (Modern GPT Style) */}
+        {/* SEND BUTTON */}
         <button
           onClick={handleSend}
           disabled={!text.trim() || disabled}
-          className={`
-            px-4 py-2 rounded-full flex items-center gap-2 font-medium shadow-sm
-            transition
-            ${
-              text.trim()
-                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }
-          `}
+          className={`px-4 py-2 rounded-full flex items-center gap-2 font-medium shadow-sm transition ${
+            text.trim()
+              ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
         >
           <Send size={16} />
         </button>

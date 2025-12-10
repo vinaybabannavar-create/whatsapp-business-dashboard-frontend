@@ -13,8 +13,15 @@ import type {
 // =====================================
 const API_BASE = "https://whatsapp-business-dashboard.onrender.com/api";
 
+// Helper: clean fetch errors
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { return text; }
+}
+
 //
-// 🔥 AUTH
+// 🔥 AUTH LOGIN
 //
 export async function apiLogin(data: { email: string; password: string }) {
   const res = await fetch(`${API_BASE}/auth/login`, {
@@ -36,23 +43,26 @@ export async function apiDeleteMessageForMe(phone: string, messageId: string) {
     { method: "DELETE" }
   );
 
-  if (!res.ok) throw new Error("Failed to delete message for me");
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
   return res.json();
 }
 
 //
 // 🔥 DELETE MESSAGE FOR EVERYONE
 //
-export async function apiDeleteMessageForEveryone(
-  phone: string,
-  messageId: string
-) {
+export async function apiDeleteMessageForEveryone(phone: string, messageId: string) {
   const res = await fetch(
     `${API_BASE}/chats/${phone}/messages/${messageId}/deleteForEveryone`,
     { method: "DELETE" }
   );
 
-  if (!res.ok) throw new Error("Failed to delete message for everyone");
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
   return res.json();
 }
 
@@ -60,9 +70,11 @@ export async function apiDeleteMessageForEveryone(
 // 🔥 DELETE CHAT
 //
 export async function apiDeleteChat(phone: string) {
-  const res = await fetch(`${API_BASE}/chats/${phone}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/chats/${phone}`, {
+    method: "DELETE",
+  });
 
-  if (!res.ok) throw new Error("Failed to delete chat");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -94,13 +106,13 @@ export async function apiCreateTemplate(payload: any) {
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) throw new Error("Failed to create template");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export async function apiTemplates(): Promise<Template[]> {
   const res = await fetch(`${API_BASE}/templates`);
-  if (!res.ok) throw new Error("Failed to load templates");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -109,7 +121,7 @@ export async function apiTemplates(): Promise<Template[]> {
 //
 export async function apiContacts(): Promise<Contact[]> {
   const res = await fetch(`${API_BASE}/contacts`);
-  if (!res.ok) throw new Error("Failed to load contacts");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -122,7 +134,7 @@ export async function apiCreateContact(
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) throw new Error("Failed to create contact");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -133,8 +145,7 @@ export async function apiChatHistory(phone: string): Promise<Message[]> {
   const res = await fetch(`${API_BASE}/chats/${phone}/messages`);
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to load chat history: ${err}`);
+    throw new Error(await res.text());
   }
 
   return res.json();
@@ -154,8 +165,7 @@ export async function apiSendMessage(
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to send message: ${err}`);
+    throw new Error(await res.text());
   }
 
   return res.json();
@@ -175,8 +185,7 @@ export async function apiSendFile(phone: string, file: File) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to upload file: ${err}`);
+    throw new Error(await res.text());
   }
 
   return res.json();
@@ -187,7 +196,7 @@ export async function apiSendFile(phone: string, file: File) {
 //
 export async function apiCampaigns(): Promise<Campaign[]> {
   const res = await fetch(`${API_BASE}/campaigns`);
-  if (!res.ok) throw new Error("Failed to load campaigns");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -198,7 +207,7 @@ export async function apiCreateCampaign(payload: any) {
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) throw new Error("Failed to create campaign");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -207,13 +216,9 @@ export async function apiCreateCampaign(payload: any) {
 //
 export async function apiDashboardStats(
   range: "Today" | "Week" | "Month" = "Today"
-) {
+): Promise<DashboardStats> {
   const res = await fetch(`${API_BASE}/analytics/dashboard?range=${range}`);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to load dashboard stats: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

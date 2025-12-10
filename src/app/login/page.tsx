@@ -1,84 +1,88 @@
-// Placeholder content for src/app/login/page.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { apiLogin } from "@/lib/apiClient";
-import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { apiLogin } from "@/lib/apiClient";
+import { useAuthStore } from "@/store/useAuthStore";
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(4),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
 
 export default function LoginPage() {
+  const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
+
   const {
     register,
     handleSubmit,
-    formState: { isSubmitting, errors },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const setAuth = useAuthStore((s) => s.setAuth);
-  const router = useRouter();
+    formState: { errors },
+  } = useForm<LoginFormValues>();
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      const res = await apiLogin(data.email, data.password);
-      setAuth(res.token, res.userId);
+      const res = await apiLogin({
+        email: data.email,
+        password: data.password,
+      });
+
+      // ✅ FIX: pass 4 args (token, userId, name, email)
+      setAuth(res.token, res.userId, res.name, res.email);
+
       toast.success("Logged in successfully");
       router.push("/");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Login failed");
+    } catch (error) {
+      toast.error("Invalid email or password");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-wa-bg">
-      <div className="w-full max-w-md bg-wa-surface border border-slate-800 rounded-xl p-6 shadow-lg">
-        <h1 className="text-xl font-semibold mb-4">
-          WhatsApp Business Dashboard
-        </h1>
-        <p className="text-xs text-slate-400 mb-4">
-          Sign in to continue. (Connect this to your real FastAPI auth.)
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
+        <h1 className="text-xl font-semibold mb-6 text-center">Login</h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="text-xs mb-1 block">Email</label>
-            <Input type="email" {...register("email")} />
+            <label className="block text-sm font-medium">Email</label>
+            <input
+              type="email"
+              {...register("email", { required: "Email is required" })}
+              className="w-full mt-1 px-3 py-2 border rounded-md"
+            />
             {errors.email && (
-              <p className="text-xs text-red-400 mt-1">
+              <p className="text-red-500 text-xs mt-1">
                 {errors.email.message}
               </p>
             )}
           </div>
+
           <div>
-            <label className="text-xs mb-1 block">Password</label>
-            <Input type="password" {...register("password")} />
+            <label className="block text-sm font-medium">Password</label>
+            <input
+              type="password"
+              {...register("password", { required: "Password is required" })}
+              className="w-full mt-1 px-3 py-2 border rounded-md"
+            />
             {errors.password && (
-              <p className="text-xs text-red-400 mt-1">
+              <p className="text-red-500 text-xs mt-1">
                 {errors.password.message}
               </p>
             )}
           </div>
-          <Button
+
+          <button
             type="submit"
-            className="w-full bg-wa-primary hover:bg-emerald-700"
-            disabled={isSubmitting}
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
           >
-            {isSubmitting ? "Signing in..." : "Sign In"}
-          </Button>
+            Login
+          </button>
         </form>
+
+        <p className="text-center text-sm text-gray-500 mt-4">
+          © WhatsApp Business Dashboard
+        </p>
       </div>
     </div>
   );

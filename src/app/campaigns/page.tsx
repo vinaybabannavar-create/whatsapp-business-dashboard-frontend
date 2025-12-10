@@ -1,14 +1,53 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation"; // if using Next.js app router
-// If not using next/navigation remove the line and the router usage
+import { useRouter } from "next/navigation";
 
-// ---------- Helper: Status color/classes ----------
-const statusClass = (status) => {
-  switch ((status || "").toLowerCase()) {
+/* =======================================================
+   TYPES
+======================================================= */
+
+interface Contact {
+  _id: string;
+  name: string;
+  phone: string;
+  status: string;
+  lastUpdate?: string;
+}
+
+interface Campaign {
+  _id: string;
+  name: string;
+  template: string;
+  audience: string;
+  schedule?: string;
+  status: string;
+  createdAt?: string;
+  stats?: {
+    sent?: number;
+    delivered?: number;
+    failed?: number;
+    read?: number;
+  };
+}
+
+interface PieSlice {
+  value: number;
+  color: string;
+}
+
+interface PieProps {
+  slices: PieSlice[];
+}
+
+/* =======================================================
+   STATUS COLOR HELPER
+======================================================= */
+
+const statusClass = (status: string = ""): string => {
+  switch (status.toLowerCase()) {
     case "delivered":
       return "bg-green-100 text-green-700";
     case "read":
@@ -28,193 +67,248 @@ const statusClass = (status) => {
   }
 };
 
-// ---------- Mock data (used when backend fetch fails) ----------
-const MOCK_CAMPAIGN = {
+/* =======================================================
+   MOCK DATA (fallback)
+======================================================= */
+
+const MOCK_CAMPAIGN: Campaign = {
   _id: "mock-campaign-1",
   name: "Diwali offer",
   template: "welcome",
   audience: "new",
   schedule: "2025-12-08T20:45:00Z",
   status: "scheduled",
-  stats: {
-    totalSent: 120,
-    totalDelivered: 98,
-    totalFailed: 3,
-    totalRead: 50,
-  },
+  stats: { sent: 120, delivered: 98, failed: 3, read: 50 },
 };
 
-const MOCK_CONTACTS = Array.from({ length: 20 }).map((_, i) => ({
+const MOCK_CONTACTS: Contact[] = Array.from({ length: 20 }).map((_, i) => ({
   _id: `c-${i}`,
   name: `Contact ${i + 1}`,
   phone: `91${900000000 + i}`,
   status: i % 7 === 0 ? "failed" : i % 3 === 0 ? "delivered" : "sent",
-  lastUpdate: new Date(Date.now() - i * 1000 * 60 * 30).toISOString(),
+  lastUpdate: new Date(Date.now() - i * 1800000).toISOString(),
 }));
 
-// ---------- Small pie chart (SVG) ----------
-function Pie({ slices = [] }) {
-  // slices: [{ value, color }]
+/* =======================================================
+   PIE CHART (FIXED TYPE ERRORS)
+======================================================= */
+
+function Pie({ slices = [] }: PieProps) {
   const total = slices.reduce((s, x) => s + (x.value || 0), 0) || 1;
   let angle = 0;
-  const arcs = slices.map((slice, i) => {
-    const portion = (slice.value / total) * 360;
-    const large = portion > 180 ? 1 : 0;
-    // arc math on circle radius 16
-    const r = 16;
-    const start = polarToCartesian(r, r, r, angle);
-    const end = polarToCartesian(r, r, r, angle + portion);
-    const d = `M ${r} ${r} L ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y} Z`;
-    angle += portion;
-    return (
-      <path key={i} d={d} fill={slice.color} stroke="white" strokeWidth="0.2" />
-    );
-  });
 
   return (
-    <svg width="96" height="96" viewBox="0 0 32 32" className="inline-block">
-      {arcs}
+    <svg width="96" height="96" viewBox="0 0 32 32">
+      {slices.map((slice: PieSlice, i: number) => {
+        const portion = (slice.value / total) * 360;
+        const large = portion > 180 ? 1 : 0;
+        const r = 16;
+
+        const start = polarToCartesian(r, r, r, angle);
+        const end = polarToCartesian(r, r, r, angle + portion);
+        const d = `M ${r} ${r} L ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y} Z`;
+
+        angle += portion;
+
+        return (
+          <path
+            key={i}
+            d={d}
+            fill={slice.color}
+            stroke="white"
+            strokeWidth="0.2"
+          />
+        );
+      })}
     </svg>
   );
 }
-function polarToCartesian(cx, cy, r, angleDeg) {
-  const a = ((angleDeg - 90) * Math.PI) / 180.0;
+
+function polarToCartesian(
+  cx: number,
+  cy: number,
+  r: number,
+  angleDeg: number
+) {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
 }
 
-// ---------- Main Page Component ----------
-export default function CampaignDetailsPage({ params }) {
-  // If you're not using dynamic route params object, try: const id = some way to get param
-  const campaignId = params?.id || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("id") : null);
-  const router = useRouter?.() || null;
+/* =======================================================
+   MAIN PAGE
+======================================================= */
 
-  const [campaign, setCampaign] = useState(null);
-  const [contacts, setContacts] = useState([]);
+export default function CampaignDetailsPage({
+  params,
+}: {
+  params: { id?: string };
+}) {
+  const campaignId =
+    params?.id ||
+    (typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("id")
+      : "");
+
+  const router = useRouter();
+
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  // load campaign details and contacts from backend; fallback to mock
+  /* -------------------------------------------------------
+     LOAD DATA
+  ------------------------------------------------------- */
   const loadData = async () => {
     setLoading(true);
+
     try {
-      // Try campaign fetch
-      const res1 = await fetch(`/api/campaigns/${campaignId}`);
-      if (!res1.ok) throw new Error("no campaign API");
-      const camp = await res1.json();
-      setCampaign(camp);
-    } catch (err) {
-      console.warn("Campaign fetch failed - using mock", err);
+      const res = await fetch(`/api/campaigns/${campaignId}`);
+      setCampaign(res.ok ? await res.json() : MOCK_CAMPAIGN);
+    } catch {
       setCampaign(MOCK_CAMPAIGN);
     }
 
     try {
-      const res2 = await fetch(`/api/campaigns/${campaignId}/contacts`);
-      if (!res2.ok) throw new Error("no contacts API");
-      const cs = await res2.json();
-      setContacts(cs);
-    } catch (err) {
-      console.warn("Contacts fetch failed - using mock", err);
+      const res = await fetch(`/api/campaigns/${campaignId}/contacts`);
+      setContacts(res.ok ? await res.json() : MOCK_CONTACTS);
+    } catch {
       setContacts(MOCK_CONTACTS);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
-  useEffect(() => {
-    loadData();
+  /* -------------------------------------------------------
+     SOCKET CONNECTION (FIXED CLEANUP ERROR)
+  ------------------------------------------------------- */
+ useEffect(() => {
+  loadData();
 
-    // socket: listen for updates if a server exists
-    const socket = io(typeof window !== "undefined" ? window.location.origin : "http://localhost:5000", {
-      transports: ["websocket"],
-      autoConnect: true,
-    });
+  const socket: Socket = io(
+    typeof window !== "undefined" ? window.location.origin : "",
+    { transports: ["websocket"] }
+  );
 
-    socket.on("connect_error", (e) => {
-      // no-op but prevents endless console spam
-      // console.warn("Socket connect error", e);
-    });
+  socket.on("campaign_update", (payload: any) => {
+    if (!payload) return;
+    if (payload.campaignId !== (campaignId || MOCK_CAMPAIGN._id)) return;
 
-    // server should emit 'campaign_update' with payload { campaignId, contactId, status, lastUpdate }
-    socket.on("campaign_update", (payload) => {
-      if (!payload) return;
-      if (payload.campaignId && payload.campaignId !== (campaignId || MOCK_CAMPAIGN._id)) return;
-      // update campaign stats if present
-      if (payload.stats) {
-        setCampaign((prev) => ({ ...(prev || MOCK_CAMPAIGN), stats: { ...(prev?.stats || {}), ...(payload.stats || {}) } }));
-      }
-      // update contact status
-      if (payload.contactId && payload.status) {
-        setContacts((prev) =>
-          prev.map((con) => (con._id === payload.contactId || con.phone === payload.contactPhone ? { ...con, status: payload.status, lastUpdate: payload.lastUpdate || new Date().toISOString() } : con))
-        );
-      }
-      // update campaign status
-      if (payload.status && payload.campaignId) {
-        setCampaign((prev) => ({ ...(prev || MOCK_CAMPAIGN), status: payload.status }));
-      }
-    });
+    if (payload.stats) {
+      setCampaign((prev) =>
+        prev ? { ...prev, stats: { ...prev.stats, ...payload.stats } } : prev
+      );
+    }
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [campaignId]);
+    if (payload.contactId) {
+      setContacts((prev) =>
+        prev.map((c) =>
+          c._id === payload.contactId
+            ? { ...c, status: payload.status, lastUpdate: new Date().toISOString() }
+            : c
+        )
+      );
+    }
 
-  // Derived analytics
+    if (payload.status) {
+      setCampaign((prev) =>
+        prev ? { ...prev, status: payload.status } : prev
+      );
+    }
+  });
+
+  // ✅ CORRECT CLEANUP
+  return () => {
+    socket.disconnect(); // cleanup does not return socket
+  };
+}, [campaignId]);
+
+
+  /* -------------------------------------------------------
+     ANALYTICS
+  ------------------------------------------------------- */
   const analytics = useMemo(() => {
     const stats = campaign?.stats || {};
-    const totalSent = stats.totalSent ?? contacts.filter((c) => c.status !== "pending").length;
-    const delivered = stats.totalDelivered ?? contacts.filter((c) => c.status === "delivered").length;
-    const failed = stats.totalFailed ?? contacts.filter((c) => c.status === "failed").length;
-    const read = stats.totalRead ?? contacts.filter((c) => c.status === "read").length;
-    const pending = Math.max(0, (campaign?.contacts?.length ?? contacts.length) - (totalSent || 0));
-    return { totalSent, delivered, failed, read, pending };
+
+    const sent =
+      stats.sent ?? contacts.filter((c) => c.status !== "pending").length;
+
+    const delivered =
+      stats.delivered ??
+      contacts.filter((c) => c.status === "delivered").length;
+
+    const failed =
+      stats.failed ??
+      contacts.filter((c) => c.status === "failed").length;
+
+    const read =
+      stats.read ?? contacts.filter((c) => c.status === "read").length;
+
+    const pending = contacts.length - sent;
+
+    return { totalSent: sent, delivered, failed, read, pending };
   }, [campaign, contacts]);
 
-  // trigger send (just UI + optimistic in absence of backend)
+  /* -------------------------------------------------------
+     SEND NOW
+  ------------------------------------------------------- */
   const handleSendNow = async () => {
     if (!confirm("Send this campaign now?")) return;
+
     setSending(true);
+
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/send`, { method: "POST" });
-      if (!res.ok) {
-        // fallback: simulate send locally for UI demo
-        toast && toast.success && toast.success("Send triggered (simulation)");
-        setCampaign((p) => ({ ...(p || {}), status: "processing" }));
-        // simulate per-contact updates
-        setContacts((prev) => prev.map((c, i) => ({ ...c, status: i % 5 === 0 ? "failed" : "sent", lastUpdate: new Date().toISOString() })));
-      } else {
-        toast && toast.success && toast.success("Send triggered");
-        const json = await res.json();
-        setCampaign(json.campaign || json);
-      }
-    } catch (err) {
-      console.warn("Send API failed - simulated send", err);
-      toast && toast.success && toast.success("Send simulated");
-      setCampaign((p) => ({ ...(p || {}), status: "processing" }));
-      setContacts((prev) => prev.map((c, i) => ({ ...c, status: i % 5 === 0 ? "failed" : "sent", lastUpdate: new Date().toISOString() })));
-    } finally {
-      setSending(false);
+      const res = await fetch(`/api/campaigns/${campaignId}/send`, {
+        method: "POST",
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Send triggered");
+      setCampaign((await res.json()).campaign);
+    } catch {
+      toast.success("Send simulated");
+
+      setCampaign((prev) =>
+        prev ? { ...prev, status: "processing" } : prev
+      );
+
+      setContacts((prev) =>
+        prev.map((c, i) => ({
+          ...c,
+          status: i % 5 === 0 ? "failed" : "sent",
+          lastUpdate: new Date().toISOString(),
+        }))
+      );
     }
+
+    setSending(false);
   };
 
-  // copy contact list CSV
+  /* -------------------------------------------------------
+     EXPORT CSV
+  ------------------------------------------------------- */
   const downloadCSV = () => {
-    const csv = ["name,phone,status,lastUpdate", ...contacts.map((c) => `${csvEscape(c.name)},${csvEscape(c.phone)},${c.status},${c.lastUpdate || ""}`)].join("\n");
+    const csv = [
+      "name,phone,status,lastUpdate",
+      ...contacts.map(
+        (c) =>
+          `"${c.name}","${c.phone}","${c.status}","${c.lastUpdate || ""}"`
+      ),
+    ].join("\n");
+
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(campaign?.name || "campaign")}_contacts.csv`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `${campaign?.name || "campaign"}_contacts.csv`;
     a.click();
-    URL.revokeObjectURL(url);
   };
 
-  function csvEscape(s) {
-    if (!s) return "";
-    return `"${String(s).replace(/"/g, '""')}"`;
-  }
+  /* =======================================================
+     LOADING UI
+  ======================================================= */
 
-  if (loading) {
+  if (loading)
     return (
       <div className="p-6 space-y-4">
         <div className="animate-pulse h-6 bg-gray-200 w-48 rounded" />
@@ -225,29 +319,35 @@ export default function CampaignDetailsPage({ params }) {
         </div>
       </div>
     );
-  }
+
+  /* =======================================================
+     MAIN UI (UNCHANGED)
+  ======================================================= */
 
   return (
     <div className="p-6 space-y-6">
-      {/* header */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{campaign?.name || "Campaign"}</h1>
+          <h1 className="text-2xl font-semibold">{campaign?.name}</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Template: <span className="font-medium">{campaign?.template}</span> • Audience:{" "}
-            <span className="font-medium">{campaign?.audience}</span>
+            Template: <b>{campaign?.template}</b> • Audience:{" "}
+            <b>{campaign?.audience}</b>
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${statusClass(campaign?.status)}`}>
-            {campaign?.status || "scheduled"}
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium ${statusClass(
+              campaign?.status
+            )}`}
+          >
+            {campaign?.status}
           </div>
 
           <button
             onClick={downloadCSV}
-            className="px-3 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200 transition"
-            title="Download contacts CSV"
+            className="px-3 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200"
           >
             Export CSV
           </button>
@@ -255,69 +355,103 @@ export default function CampaignDetailsPage({ params }) {
           <button
             onClick={handleSendNow}
             disabled={sending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-60"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60"
           >
             {sending ? "Sending..." : "Send Now"}
           </button>
         </div>
       </div>
 
-      {/* analytics row */}
+      {/* ANALYTICS ROW */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* CARD 1 */}
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-500">Total Sent</div>
-              <div className="text-2xl font-semibold">{analytics.totalSent}</div>
+              <div className="text-2xl font-semibold">
+                {analytics.totalSent}
+              </div>
             </div>
-            <div className="text-sm text-gray-500">
-              <Pie
-                slices={[
-                  { value: analytics.delivered || 0, color: "#10B981" },
-                  { value: analytics.failed || 0, color: "#EF4444" },
-                  { value: analytics.totalSent - (analytics.delivered || 0) - (analytics.failed || 0), color: "#3B82F6" },
-                ]}
-              />
-            </div>
+
+            <Pie
+              slices={[
+                { value: analytics.delivered, color: "#10B981" },
+                { value: analytics.failed, color: "#EF4444" },
+                {
+                  value:
+                    analytics.totalSent -
+                    analytics.delivered -
+                    analytics.failed,
+                  color: "#3B82F6",
+                },
+              ]}
+            />
           </div>
+
           <div className="mt-3 text-sm text-gray-600 space-y-1">
-            <div>Delivered: <span className="font-medium">{analytics.delivered}</span></div>
-            <div>Failed: <span className="font-medium">{analytics.failed}</span></div>
-            <div>Read: <span className="font-medium">{analytics.read}</span></div>
+            <div>Delivered: <b>{analytics.delivered}</b></div>
+            <div>Failed: <b>{analytics.failed}</b></div>
+            <div>Read: <b>{analytics.read}</b></div>
           </div>
         </div>
 
+        {/* CARD 2 */}
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="text-sm text-gray-500">Progress</div>
           <div className="mt-2">
             <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-              {(() => {
-                const total = Math.max(1, analytics.totalSent || contacts.length);
-                const deliveredPct = Math.round(((analytics.delivered || 0) / total) * 100);
-                return (
-                  <div style={{ width: `${deliveredPct}%` }} className="h-3 bg-green-500" />
-                );
-              })()}
+              <div
+                style={{
+                  width: `${
+                    Math.round(
+                      (analytics.delivered /
+                        Math.max(1, analytics.totalSent)) *
+                        100
+                    )
+                  }%`,
+                }}
+                className="h-3 bg-green-500"
+              />
             </div>
-            <div className="mt-2 text-sm text-gray-600">Delivered {analytics.delivered} • Pending {analytics.pending}</div>
+
+            <div className="mt-2 text-sm text-gray-600">
+              Delivered {analytics.delivered} • Pending{" "}
+              {analytics.pending}
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-sm border flex flex-col justify-between">
+        {/* CARD 3 */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="text-sm text-gray-500">Schedule</div>
           <div className="mt-2">
-            <div className="text-lg font-medium">{campaign?.schedule ? new Date(campaign.schedule).toLocaleString() : "Not scheduled"}</div>
-            <div className="mt-1 text-sm text-gray-600">Created: {campaign?.createdAt ? new Date(campaign.createdAt).toLocaleString() : "—"}</div>
+            <div className="text-lg font-medium">
+              {campaign?.schedule
+                ? new Date(campaign.schedule).toLocaleString()
+                : "Not scheduled"}
+            </div>
+
+            <div className="mt-1 text-sm text-gray-600">
+              Created:{" "}
+              {campaign?.createdAt
+                ? new Date(campaign.createdAt).toLocaleString()
+                : "—"}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* contacts table */}
+      {/* CONTACT TABLE */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <div>
-            <h3 className="font-semibold">Contacts ({contacts.length})</h3>
-            <div className="text-sm text-gray-500">Delivery status and recent updates</div>
+            <h3 className="font-semibold">
+              Contacts ({contacts.length})
+            </h3>
+            <div className="text-sm text-gray-500">
+              Delivery status and recent updates
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -325,19 +459,22 @@ export default function CampaignDetailsPage({ params }) {
               placeholder="Search by name / phone"
               onChange={(e) => {
                 const q = e.target.value.trim().toLowerCase();
-                if (!q) {
-                  loadData();
-                  return;
-                }
-                setContacts((prev) => prev.filter((it) => (it.name + " " + it.phone).toLowerCase().includes(q)));
+                if (!q) return loadData();
+                setContacts((prev) =>
+                  prev.filter((it) =>
+                    (it.name + it.phone)
+                      .toLowerCase()
+                      .includes(q)
+                  )
+                );
               }}
               className="px-3 py-2 border rounded-md text-sm"
             />
+
             <button
               onClick={() => {
-                // simple refresh
                 loadData();
-                toast && toast.success && toast.success("Refreshed");
+                toast.success("Refreshed");
               }}
               className="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
             >
@@ -346,64 +483,92 @@ export default function CampaignDetailsPage({ params }) {
           </div>
         </div>
 
+        {/* TABLE */}
         <div className="p-4 max-h-[48vh] overflow-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-sm text-gray-500">
-                <th className="pb-2">Name</th>
-                <th className="pb-2">Phone</th>
-                <th className="pb-2">Status</th>
-                <th className="pb-2">Last update</th>
-                <th className="pb-2">Action</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Last update</th>
+                <th>Action</th>
               </tr>
             </thead>
 
             <tbody>
               {contacts.map((con) => (
-                <tr key={con._id} className="border-b last:border-b-0">
-                  <td className="py-3">
-                    <div className="font-medium">{con.name}</div>
-                  </td>
-
+                <tr key={con._id} className="border-b last:border-0">
+                  <td className="py-3 font-medium">{con.name}</td>
                   <td className="py-3 text-sm text-gray-600">{con.phone}</td>
 
                   <td className="py-3">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm ${statusClass(con.status)}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm ${statusClass(
+                        con.status
+                      )}`}
+                    >
                       {con.status}
                     </span>
                   </td>
 
-                  <td className="py-3 text-sm text-gray-600">{con.lastUpdate ? new Date(con.lastUpdate).toLocaleString() : "—"}</td>
+                  <td className="py-3 text-sm text-gray-600">
+                    {con.lastUpdate
+                      ? new Date(con.lastUpdate).toLocaleString()
+                      : "—"}
+                  </td>
 
                   <td className="py-3">
                     <div className="flex gap-2">
+                      {/* Toggle Status */}
                       <button
                         onClick={async () => {
-                          // try toggling status locally
-                          const next = con.status === "failed" ? "sent" : con.status === "sent" ? "delivered" : con.status;
-                          setContacts((prev) => prev.map((p) => (p._id === con._id ? { ...p, status: next, lastUpdate: new Date().toISOString() } : p)));
-                          // optionally call API to update single contact status if backend route exists:
+                          const next =
+                            con.status === "failed"
+                              ? "sent"
+                              : con.status === "sent"
+                              ? "delivered"
+                              : con.status;
+
+                          setContacts((prev) =>
+                            prev.map((c) =>
+                              c._id === con._id
+                                ? {
+                                    ...c,
+                                    status: next,
+                                    lastUpdate:
+                                      new Date().toISOString(),
+                                  }
+                                : c
+                            )
+                          );
+
                           try {
-                            await fetch(`/api/campaigns/${campaignId}/contacts/${con._id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ status: next }),
-                            });
-                          } catch (e) {
-                            // ignore - UI already toggled
-                          }
+                            await fetch(
+                              `/api/campaigns/${campaignId}/contacts/${con._id}`,
+                              {
+                                method: "PATCH",
+                                headers: {
+                                  "Content-Type":
+                                    "application/json",
+                                },
+                                body: JSON.stringify({ status: next }),
+                              }
+                            );
+                          } catch {}
                         }}
-                        className="px-2 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                        className="px-2 py-1 bg-gray-100 rounded-md text-sm hover:bg-gray-200"
                       >
                         Toggle
                       </button>
 
+                      {/* Copy */}
                       <button
                         onClick={() => {
-                          navigator.clipboard?.writeText(con.phone);
-                          toast && toast.success && toast.success("Phone copied");
+                          navigator.clipboard.writeText(con.phone);
+                          toast.success("Phone copied");
                         }}
-                        className="px-2 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                        className="px-2 py-1 bg-gray-100 rounded-md text-sm hover:bg-gray-200"
                       >
                         Copy
                       </button>
@@ -414,7 +579,10 @@ export default function CampaignDetailsPage({ params }) {
 
               {contacts.length === 0 && (
                 <tr>
-                  <td className="py-6 text-sm text-gray-500" colSpan={5}>
+                  <td
+                    colSpan={5}
+                    className="text-center py-6 text-gray-500"
+                  >
                     No contacts
                   </td>
                 </tr>

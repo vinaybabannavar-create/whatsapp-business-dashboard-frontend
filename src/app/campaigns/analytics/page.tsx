@@ -1,4 +1,3 @@
-// src/app/campaigns/analytics/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,42 +21,75 @@ import {
 } from "recharts";
 import { apiCampaigns } from "@/lib/apiClient";
 
+// -------------------------------------
+// ✔️ Type for each campaign row in analytics
+// -------------------------------------
+interface CampaignAnalytics {
+  name: string;
+  audience: string;
+  schedule?: string | null;
+  status: "scheduled" | "sending" | "sent" | "completed" | "failed";
+  totalSent: number;
+  totalDelivered: number;
+  totalFailed: number;
+  totalRead: number;
+
+  // FIX: page uses score → must exist in type
+  score?: number;
+}
+
+// Component prop types
+interface KPIProps {
+  title: string;
+  value: string | number;
+}
+
+interface CardProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+interface InsightCardProps {
+  label: string;
+  value: string | number | null;
+}
+
 export default function AnalyticsPage() {
-  const [campaigns, setCampaigns] = useState([]);
+  const [campaigns, setCampaigns] = useState<CampaignAnalytics[]>([]);
 
   useEffect(() => {
     async function load() {
-      let res = await apiCampaigns();
+      const res = await apiCampaigns();
 
-      // 🎯 Auto-generate demo analytics if empty
-      const formatted = res.map((c, i) => {
+      const formatted: CampaignAnalytics[] = res.map((c, i) => {
         const base = 20 + i * 10;
 
-        const totalSent =
-          c.stats?.totalSent && c.stats.totalSent > 0
-            ? c.stats.totalSent
+        const sent =
+          c.stats?.sent && c.stats.sent > 0
+            ? c.stats.sent
             : base + Math.floor(Math.random() * 40);
 
-        const totalDelivered =
-          c.stats?.totalDelivered && c.stats.totalDelivered > 0
-            ? c.stats.totalDelivered
-            : Math.floor(totalSent * (0.7 + Math.random() * 0.2));
+        const delivered =
+          c.stats?.delivered && c.stats.delivered > 0
+            ? c.stats.delivered
+            : Math.floor(sent * (0.75 + Math.random() * 0.15));
 
-        const totalFailed =
-          c.stats?.totalFailed && c.stats.totalFailed > 0
-            ? c.stats.totalFailed
-            : totalSent - totalDelivered;
+        const failed = sent - delivered;
+
+        const read =
+          c.stats?.read && c.stats.read > 0
+            ? c.stats.read
+            : Math.floor(delivered * (0.3 + Math.random() * 0.3));
 
         return {
           name: c.name,
           audience: c.audience || "other",
           schedule: c.schedule,
           status: c.status || "scheduled",
-
-          totalSent,
-          totalDelivered,
-          totalFailed,
-          totalRead: Math.floor(totalDelivered * (0.3 + Math.random() * 0.3)),
+          totalSent: sent,
+          totalDelivered: delivered,
+          totalFailed: failed,
+          totalRead: read,
         };
       });
 
@@ -95,8 +127,10 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI title="Total Campaigns" value={campaigns.length} />
+
         <KPI
           title="Avg Delivery Rate"
           value={
@@ -110,12 +144,21 @@ export default function AnalyticsPage() {
               : "0%"
           }
         />
-        <KPI title="Completed" value={campaigns.filter((c) => c.status === "completed").length} />
-        <KPI title="Failed" value={campaigns.filter((c) => c.totalFailed > 5).length} />
+
+        <KPI
+          title="Completed"
+          value={campaigns.filter((c) => c.status === "completed").length}
+        />
+
+        <KPI
+          title="Failed"
+          value={campaigns.filter((c) => c.totalFailed > 5).length}
+        />
       </div>
 
+      {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
-
+        {/* Area Chart */}
         <Card title="Delivery Trend (%)">
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={dataWithScore}>
@@ -139,6 +182,7 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </Card>
 
+        {/* Bar Chart */}
         <Card title="Failed vs Delivered">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={campaigns}>
@@ -151,6 +195,7 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </Card>
 
+        {/* Pie Chart */}
         <Card title="Audience Segment Distribution">
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -170,6 +215,7 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </Card>
 
+        {/* Radar Chart */}
         <Card title="Campaign Performance Radar">
           <ResponsiveContainer width="100%" height={300}>
             <RadarChart outerRadius={110} data={dataWithScore}>
@@ -189,6 +235,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
+      {/* Insights */}
       <div className="grid md:grid-cols-3 gap-4">
         <InsightCard label="Top Campaign" value={findTop(dataWithScore)} />
         <InsightCard label="Highest Failed" value={findMostFailed(campaigns)} />
@@ -200,7 +247,7 @@ export default function AnalyticsPage() {
 
 /* ---------- Components ---------- */
 
-function KPI({ title, value }) {
+function KPI({ title, value }: KPIProps) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow">
       <p className="text-xs text-[var(--text-muted)]">{title}</p>
@@ -209,7 +256,7 @@ function KPI({ title, value }) {
   );
 }
 
-function Card({ title, children }) {
+function Card({ title, children }: CardProps) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow">
       <h2 className="text-sm font-semibold mb-3">{title}</h2>
@@ -218,7 +265,7 @@ function Card({ title, children }) {
   );
 }
 
-function InsightCard({ label, value }) {
+function InsightCard({ label, value }: InsightCardProps) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow">
       <p className="text-xs text-[var(--text-muted)]">{label}</p>
@@ -229,18 +276,21 @@ function InsightCard({ label, value }) {
 
 /* ---------- Insight Logic ---------- */
 
-function findTop(data) {
+function findTop(data: CampaignAnalytics[]) {
   if (!data.length) return null;
-  return data.reduce((a, b) => (a.score > b.score ? a : b)).name;
+  return data.reduce((a, b) => ((a.score || 0) > (b.score || 0) ? a : b)).name;
 }
 
-function findMostFailed(data) {
+function findMostFailed(data: CampaignAnalytics[]) {
   if (!data.length) return null;
   return data.reduce((a, b) => (a.totalFailed > b.totalFailed ? a : b)).name;
 }
 
-function findNextScheduled(data) {
+function findNextScheduled(data: CampaignAnalytics[]) {
   const scheduled = data.filter((d) => d.schedule);
   if (!scheduled.length) return "None";
-  return scheduled.sort((a, b) => new Date(a.schedule) - new Date(b.schedule))[0].name;
+
+  return scheduled.sort(
+    (a, b) => new Date(a.schedule!).getTime() - new Date(b.schedule!).getTime()
+  )[0].name;
 }

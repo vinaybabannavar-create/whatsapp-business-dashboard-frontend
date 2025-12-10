@@ -1,52 +1,33 @@
 {
   "compilerOptions": {
-    /* Language Options */
     "target": "ES2020",
     "lib": ["dom", "dom.iterable", "es2020"],
-
-    /* Strictness */
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
-
-    /* Module Resolution */
     "module": "esnext",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-
-    /* JSX (Next.js requirement) */
     "jsx": "preserve",
 
-    /* --------------------------------------------- */
-    /*              PATH ALIAS FIX (IMPORTANT)       */
-    /* --------------------------------------------- */
-
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     },
 
-    /* Next.js plugin */
+    /* 👇 REQUIRED to load your custom declaration files */
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ],
+
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "plugins": [{ "name": "next" }]
   },
 
-  /* --------------------------------------------- */
-  /*                 NEXT.JS SETTINGS              */
-  /* --------------------------------------------- */
-
-  "include": [
-    "next-env.d.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
 }

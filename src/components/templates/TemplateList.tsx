@@ -6,8 +6,11 @@ import TemplateCard from "./TemplateCard";
 import NewTemplateModal from "./NewTemplateModal";
 import AITemplateModal from "./AITemplateModal";
 
+import type { Template } from "@/lib/types";
+
 export default function TemplateList() {
-  const [templates, setTemplates] = useState([]);
+  // 👇 FIX: specify type
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
 
@@ -17,7 +20,7 @@ export default function TemplateList() {
   const load = async () => {
     try {
       const data = await apiTemplates();
-      setTemplates(data);
+      setTemplates(data); // ✔ now typed correctly
     } catch (err) {
       console.error("TEMPLATE LOAD ERROR:", err);
     }
@@ -27,7 +30,7 @@ export default function TemplateList() {
     load();
   }, []);
 
-  const filtered = templates.filter((t: any) => {
+  const filtered = templates.filter((t) => {
     const searchMatch =
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       (t.content || "").toLowerCase().includes(search.toLowerCase());
@@ -66,8 +69,6 @@ export default function TemplateList() {
 
         {/* ACTION BUTTONS */}
         <div className="flex gap-3">
-
-          {/* AI GENERATE BUTTON */}
           <button
             onClick={() => setOpenAIModal(true)}
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
@@ -75,20 +76,18 @@ export default function TemplateList() {
             🤖 AI Generate
           </button>
 
-          {/* NEW TEMPLATE BUTTON */}
           <button
             onClick={() => setOpenNewModal(true)}
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"
           >
             ➕ New Template
           </button>
-
         </div>
       </div>
 
       {/* TEMPLATE LIST */}
       <div className="grid md:grid-cols-2 gap-4">
-        {filtered.map((t: any) => (
+        {filtered.map((t) => (
           <TemplateCard key={t._id} template={t} onUpdated={load} />
         ))}
 
@@ -134,7 +133,6 @@ export default function TemplateList() {
           }}
         />
       )}
-
     </div>
   );
 }

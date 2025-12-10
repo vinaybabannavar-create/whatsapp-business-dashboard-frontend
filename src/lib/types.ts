@@ -1,27 +1,33 @@
 // ----------------------------------------------------
-// 🔹 Contact (WhatsApp Business Contact)
+// 🔹 Contact (Consistent with backend + Zustand)
 // ----------------------------------------------------
 export interface Contact {
-  id: string;
+  id: string;                  // frontend ID (string)
   name: string;
-  phone_number: string;
+  phone_number: string;        // MATCHES backend + UI
   tags: string[];
-  created_at: string;
-}
-// ----------------------------------------------------
-// 🔹 Message (Chat Window Messages)
-// ----------------------------------------------------
-export interface Message {
-  id: string;
-  from: "business" | "customer";
-  text: string;
-  time: string;
-  status: "sent" | "delivered" | "read"; // ✅ make status required
-  media_url?: string | null;
+  created_at: string;          // MATCHES backend payload
 }
 
 // ----------------------------------------------------
-// 🔹 Chat Summary (Left Panel Chat List)
+// 🔹 Message (Clean, backend-compatible)
+// ----------------------------------------------------
+export interface Message {
+  _id: string;
+  id?: string;                 // fallback for frontend
+  from: "business" | "customer";
+
+  text?: string;
+  media_url?: string | null;
+
+  createdAt: string;
+  time?: string;               // backend sometimes returns "time"
+
+  status?: "sent" | "delivered" | "read";
+}
+
+// ----------------------------------------------------
+// 🔹 Chat Summary (Left panel)
 // ----------------------------------------------------
 export interface ChatSummary {
   phone_number: string;
@@ -32,35 +38,33 @@ export interface ChatSummary {
 }
 
 // ----------------------------------------------------
-// 🔹 Message (Chat Window Messages)
-// ----------------------------------------------------
-export interface Message {
-  id: string;
-  from: "business" | "customer";
-  text: string;
-  time: string;
-  status?: "sent" | "delivered" | "read";
-  media_url?: string | null;
-}
-
-// ----------------------------------------------------
-// 🔹 Campaigns (Bulk Messaging)
+// 🔹 Campaign
 // ----------------------------------------------------
 export interface Campaign {
-  id: string;
+  _id: string;
   name: string;
-  status: "draft" | "running" | "completed";
-  total_contacts: number;
-  sent: number;
-  delivered: number;
-  read: number;
+  template?: string;
+  audience?: string;
+
+  schedule?: string | null;
+  status: "scheduled" | "sending" | "sent" | "completed" | "failed";
+
+  stats?: {
+    sent: number;
+    delivered: number;
+    failed: number;
+    read: number;
+  };
+
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ----------------------------------------------------
-// 🔹 WhatsApp Templates
+// 🔹 Template
 // ----------------------------------------------------
 export interface Template {
-  id: string;
+  _id: string;
   name: string;
   category: string;
   content: string;
@@ -68,7 +72,7 @@ export interface Template {
 }
 
 // ----------------------------------------------------
-// 🔹 Google Sheets
+// 🔹 Sheets
 // ----------------------------------------------------
 export interface Sheet {
   name: string;

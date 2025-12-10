@@ -1,124 +1,102 @@
-
 "use client";
 
 import { useState } from "react";
+import { apiCreateCampaign } from "@/lib/apiClient";
 import { toast } from "sonner";
 
-export default function NewCampaignModal({ isOpen, onClose }) {
+// ------------------------------
+// 🔹 Props interface
+// ------------------------------
+interface NewCampaignModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function NewCampaignModal({ isOpen, onClose }: NewCampaignModalProps) {
   if (!isOpen) return null;
 
   const [name, setName] = useState("");
-  const [template, setTemplate] = useState("");
-  const [audience, setAudience] = useState("");
+  const [audience, setAudience] = useState("all");
   const [schedule, setSchedule] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleCreate = async () => {
-    if (!name.trim() || !template.trim() || !audience.trim()) {
-      toast.error("Please complete all required fields.");
+  const createCampaign = async () => {
+    if (!name.trim()) {
+      toast.error("Campaign name required");
       return;
     }
 
-    const payload = {
-      name,
-      template,
-      audience,
-      schedule: schedule || null,
-      status: "scheduled",
-    };
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await apiCreateCampaign({
+        name,
+        audience,
+        schedule: schedule || null,
       });
 
-      if (!res.ok) throw new Error("Failed");
-
-      toast.success("Campaign created successfully!");
-
-      // Reset fields
-      setName("");
-      setTemplate("");
-      setAudience("");
-      setSchedule("");
-
+      toast.success("Campaign created!");
       onClose();
-    } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong");
+    } catch (err) {
+      toast.error("Failed to create campaign");
     }
+
+    setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[var(--surface)] rounded-2xl shadow-xl border border-[var(--border)] p-6 animate-fadeIn">
-
-        <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
-          Create New Campaign
-        </h2>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl">
+        <h2 className="text-xl font-semibold mb-4">Create New Campaign</h2>
 
         {/* Campaign Name */}
-        <label className="text-xs text-[var(--text-muted)]">Campaign Name</label>
+        <label className="text-sm font-medium">Campaign Name</label>
         <input
-          className="w-full p-2 mb-3 bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg text-sm"
-          placeholder="Diwali Offer"
+          className="w-full px-3 py-2 border rounded-md mt-1 mb-3"
+          placeholder="Diwali Promo"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
-        {/* Message Template */}
-        <label className="text-xs text-[var(--text-muted)]">Message Template</label>
-        <select
-          className="w-full p-2 mb-3 bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg text-sm"
-          value={template}
-          onChange={(e) => setTemplate(e.target.value)}
-        >
-          <option value="">Select Template</option>
-          <option value="welcome">Welcome Template</option>
-          <option value="discount">Discount Offer</option>
-          <option value="reminder">Reminder Message</option>
-        </select>
-
         {/* Audience */}
-        <label className="text-xs text-[var(--text-muted)]">Audience</label>
+        <label className="text-sm font-medium">Audience</label>
         <select
-          className="w-full p-2 mb-3 bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg text-sm"
+          className="w-full px-3 py-2 border rounded-md mt-1 mb-3"
           value={audience}
           onChange={(e) => setAudience(e.target.value)}
         >
-          <option value="">Select Audience</option>
-          <option value="vip">VIP Customers</option>
-          <option value="new">New Users</option>
+          <option value="all">All Contacts</option>
+          <option value="new">New Customers</option>
           <option value="returning">Returning Customers</option>
+          <option value="vip">VIP</option>
         </select>
 
         {/* Schedule */}
-        <label className="text-xs text-[var(--text-muted)]">Schedule (Optional)</label>
+        <label className="text-sm font-medium">Schedule (optional)</label>
         <input
           type="datetime-local"
-          className="w-full p-2 mb-4 bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg text-sm"
+          className="w-full px-3 py-2 border rounded-md mt-1 mb-4"
           value={schedule}
           onChange={(e) => setSchedule(e.target.value)}
         />
 
         {/* Buttons */}
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-[var(--text)] hover:opacity-80"
+            className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             Cancel
           </button>
 
           <button
-            onClick={handleCreate}
-            className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white hover:bg-opacity-80"
+            onClick={createCampaign}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            Create Campaign
+            {loading ? "Creating..." : "Create"}
           </button>
         </div>
-
       </div>
     </div>
   );
