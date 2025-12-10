@@ -98,14 +98,14 @@ export default function CommandPalette() {
         type: "campaign",
       }));
 
-    const templateItems = templates
-      .filter((t) => t.name.toLowerCase().includes(q))
-      .map<SearchItem>((t) => ({
-        id: `template-${t.id}`,
-        label: t.name,
-        subtitle: `${t.category} • ${t.language}`,
-        type: "template`,
-      }));
+   const templateItems = templates
+  .filter((t) => t.name.toLowerCase().includes(q))
+  .map<SearchItem>((t) => ({
+    id: `template-${t.id}`,
+    label: t.name,
+    subtitle: `${t.category} • ${t.language}`,
+    type: "template",
+  }));
 
     setItems([...contactItems, ...campaignItems, ...templateItems]);
   }, [query, contacts, campaigns, templates]);
