@@ -30,7 +30,7 @@ export default function CommandPalette() {
   const router = useRouter();
   const { setSelectedChat } = useChatStore();
 
-  /* ---------------------- KEYBOARD SHORTCUT: CTRL + K ---------------------- */
+  // CTRL+K Shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -43,7 +43,7 @@ export default function CommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  /* ---------------------- LOAD DATA WHEN OPENED ---------------------- */
+  // Load data
   useEffect(() => {
     if (!open) return;
 
@@ -66,7 +66,7 @@ export default function CommandPalette() {
     loadData();
   }, [open]);
 
-  /* ---------------------- FILTERING LOGIC ---------------------- */
+  // Filter results
   useEffect(() => {
     if (!query.trim()) {
       setItems([]);
@@ -98,19 +98,19 @@ export default function CommandPalette() {
         type: "campaign",
       }));
 
-   const templateItems = templates
-  .filter((t) => t.name.toLowerCase().includes(q))
-  .map<SearchItem>((t) => ({
-    id: `template-${t.id}`,
-    label: t.name,
-    subtitle: `${t.category} • ${t.language}`,
-    type: "template",
-  }));
+    const templateItems = templates
+      .filter((t) => t.name.toLowerCase().includes(q))
+      .map<SearchItem>((t) => ({
+        id: `template-${t.id}`,
+        label: t.name,
+        subtitle: `${t.category} • ${t.language}`,
+        type: "template",
+      }));
 
     setItems([...contactItems, ...campaignItems, ...templateItems]);
   }, [query, contacts, campaigns, templates]);
 
-  /* ---------------------- HANDLE SELECTION ---------------------- */
+  // Click handler
   const handleSelect = (item: SearchItem) => {
     if (item.type === "contact" && item.phoneNumber) {
       setSelectedChat(item.phoneNumber, item.label);
@@ -125,15 +125,13 @@ export default function CommandPalette() {
     setQuery("");
   };
 
-  /* ---------------------- RENDER NOTHING IF CLOSED ---------------------- */
   if (!open) return null;
 
-  /* ---------------------- UI OUTPUT ---------------------- */
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 backdrop-blur-sm">
       <div className="mt-24 w-full max-w-xl rounded-2xl bg-[var(--surface)] shadow-xl border border-[var(--border)]">
-        
-        {/* SEARCH BAR */}
+
+        {/* Search bar */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)]">
           <Search size={16} className="text-[var(--text-muted)]" />
           <input
@@ -143,20 +141,15 @@ export default function CommandPalette() {
             placeholder="Search contacts, campaigns, templates..."
             className="flex-1 bg-transparent text-sm text-[var(--text)] outline-none"
           />
-          <button
-            onClick={() => setOpen(false)}
-            className="p-1 hover:bg-[var(--bg)] rounded-md"
-          >
+          <button onClick={() => setOpen(false)} className="p-1 hover:bg-[var(--bg)] rounded-md">
             <X size={17} className="text-[var(--text-muted)]" />
           </button>
         </div>
 
-        {/* RESULTS */}
+        {/* Results */}
         <div className="max-h-80 overflow-y-auto py-2">
           {loading && (
-            <p className="text-xs text-[var(--text-muted)] px-4 py-2">
-              Loading data…
-            </p>
+            <p className="text-xs text-[var(--text-muted)] px-4 py-2">Loading data…</p>
           )}
 
           {!loading && query && items.length === 0 && (
@@ -172,10 +165,7 @@ export default function CommandPalette() {
                 onClick={() => handleSelect(item)}
                 className="w-full px-4 py-2 flex items-center gap-3 text-left hover:bg-[var(--bg)] transition"
               >
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center
-                  bg-gradient-to-br from-emerald-500 to-green-700 text-white"
-                >
+                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-green-700 text-white">
                   {item.type === "contact" && <Users size={14} />}
                   {item.type === "campaign" && <Megaphone size={14} />}
                   {item.type === "template" && <FileText size={14} />}
@@ -184,9 +174,7 @@ export default function CommandPalette() {
                 <div className="flex-1">
                   <p className="text-sm text-[var(--text)]">{item.label}</p>
                   {item.subtitle && (
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      {item.subtitle}
-                    </p>
+                    <p className="text-[11px] text-[var(--text-muted)]">{item.subtitle}</p>
                   )}
                 </div>
 
