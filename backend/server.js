@@ -22,8 +22,13 @@ const server = http.createServer(app);
 // =====================================
 const allowedOrigins = [
   "http://localhost:3000",
+
+  // OLD DEPLOY BUILDS
   "https://whatsapp-business-dashboard-frontend.vercel.app",
-  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app"
+  "https://whatsapp-business-dashboard-frontend-git-main-vin-76388345.vercel.app",
+
+  // NEW DEPLOY BUILD (your current frontend)
+  "https://whatsapp-business-dashboard-frontend-2v4nnbkia-vin-76388345.vercel.app"
 ];
 
 // =====================================
