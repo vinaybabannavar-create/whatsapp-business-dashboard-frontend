@@ -11,6 +11,7 @@ import ShortcutsSettings from "./shortcuts/ShortcutsSettings";
 export default function SettingsContainer() {
   return (
     <div className="space-y-6">
+
       <div className="bg-[var(--surface)] rounded-2xl p-6 border border-[var(--border)] shadow-sm">
         <ProfileCard />
       </div>
