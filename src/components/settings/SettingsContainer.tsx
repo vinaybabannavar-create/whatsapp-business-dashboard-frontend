@@ -12,17 +12,12 @@ export default function SettingsContainer() {
   return (
     <div className="space-y-6">
 
-      {/* Profile Section */}
       <div className="bg-[var(--surface)] rounded-2xl p-6 border border-[var(--border)] shadow-sm">
         <ProfileCard />
       </div>
 
-      {/* Settings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* Left Column */}
         <div className="space-y-6">
-
           <div className="bg-[var(--surface)] rounded-2xl p-6 border border-[var(--border)]">
             <h3 className="text-lg font-semibold mb-3">Appearance</h3>
             <ThemeSwitcher />
@@ -37,12 +32,9 @@ export default function SettingsContainer() {
             <h3 className="text-lg font-semibold mb-3">Shortcuts</h3>
             <ShortcutsSettings />
           </div>
-
         </div>
 
-        {/* Right Column */}
         <div className="space-y-6">
-
           <div className="bg-[var(--surface)] rounded-2xl p-6 border border-[var(--border)]">
             <h3 className="text-lg font-semibold mb-3">AI & Automation</h3>
             <AISettings />
@@ -52,11 +44,8 @@ export default function SettingsContainer() {
             <h3 className="text-lg font-semibold mb-3">Privacy & Security</h3>
             <PrivacySettings />
           </div>
-
         </div>
-
-      </div> {/* ← Missing closing div added here */}
-
+      </div>
     </div>
   );
 }
