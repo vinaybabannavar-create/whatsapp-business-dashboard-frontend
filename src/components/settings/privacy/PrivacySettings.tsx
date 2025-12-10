@@ -10,6 +10,7 @@ export default function PrivacySettings() {
 
   return (
     <div className="space-y-4">
+
       <div className="flex items-center justify-between">
         <div>
           <p className="font-medium">Two-factor Authentication</p>
@@ -27,11 +28,10 @@ export default function PrivacySettings() {
       <div>
         <p className="font-medium">Logged-in devices</p>
         <ul className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
-          {lastDevices.length === 0 ? (
-            <li>No devices recorded.</li>
-          ) : (
-            lastDevices.map((d, i) => <li key={i}>{d}</li>)
-          )}
+          {lastDevices.length === 0
+            ? <li>No devices recorded.</li>
+            : lastDevices.map((d, i) => <li key={i}>{d}</li>)
+          }
         </ul>
 
         <div className="mt-3 flex gap-2">
@@ -74,6 +74,7 @@ export default function PrivacySettings() {
           </button>
         </div>
       </div>
+
     </div>
   );
 }
